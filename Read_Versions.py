@@ -19,7 +19,7 @@ def readQuery(SQL, fullPath):
         conn = pypyodbc.win_connect_mdb(fullPath)
     elif ".sqlite" in fullPath:
         conn = sqlite3.connect(fullPath)
-        print "connection established with ",fullPath
+##        print "connection established with ",fullPath
     else:
         MessageBox(None, "Tool ends." + fullPath + " not recognized as mdb or sqlite", 'Info', 0)
         exit()
@@ -41,11 +41,18 @@ def readQuery(SQL, fullPath):
 
 working_folder = os.getcwd()
 
-backup_folder = r'J:\SEWER_AREA_MODELS\VSA\01_MASTER_MODEL\MODEL\Backups'
-prefix = 'VSA_BASE'
+##backup_folder = r'J:\SEWER_AREA_MODELS\VSA\01_MASTER_MODEL\MODEL\Backups'
+##prefix = 'VSA_BASE'
 
 ##backup_folder = r'J:\SEWER_AREA_MODELS\FSA\01_MASTER_MODEL\MODEL\BACKUP'
 ##prefix = 'FSA_Base'
+
+##backup_folder = r'J:\SEWER_AREA_MODELS\NSSA\01_MASTER_MODEL\MODEL\BACKUP'
+##prefix = 'NSSA_Base_Backup'
+
+backup_folder = r'J:\SEWER_AREA_MODELS\LISA\01_MASTER_MODEL\MODEL\BACKUP'
+prefix = 'LISA_Base_Backup'
+
 
 ##def main(working_folder,mu_path,use_accumulation):
 if 1 == 1: #For debugging in idle/pyscripter uncomment this line and comment the above.
@@ -53,76 +60,119 @@ if 1 == 1: #For debugging in idle/pyscripter uncomment this line and comment the
     master_list = []
     for f in os.listdir(backup_folder):
 
-        if f[-4:].lower()=='.mdb' and f[:len(prefix)] == prefix:
+        if (f[-4:].lower()=='.mdb' or f[-7:].lower()=='.sqlite') and f[:len(prefix)].lower() == prefix.lower():
+            extension = os.path.splitext(f)[1][1:].lower()
             print 'Process file ' + f
             mu_path = backup_folder + '\\' + f
             backup_no = re.findall(r'\d+', f)
             backup_no = int(backup_no[len(backup_no)-1])
 
             #Count nodes
-            sql = "SELECT COUNT(MUID) FROM msm_Node"
+            if extension == 'mdb':
+                sql = "SELECT COUNT(MUID) FROM msm_Node"
+            else:
+                sql = "SELECT COUNT(MUID) FROM msm_Node WHERE Active = 1"
             nodes = readQuery(sql,mu_path)[0][0]
             master_list.append([backup_no,'Network','Number of Nodes','Number',nodes])
 
             #Count sealed nodes
-            sql = "SELECT COUNT(MUID) FROM msm_Node WHERE CoverTypeNo = 2"
+            if extension == 'mdb':
+                sql = "SELECT COUNT(MUID) FROM msm_Node WHERE CoverTypeNo = 2"
+            else:
+                sql = "SELECT COUNT(MUID) FROM msm_Node WHERE CoverTypeNo = 2 AND Active = 1"
             nodes = readQuery(sql,mu_path)[0][0]
             master_list.append([backup_no,'Network','Number of Sealed Nodes','Number',nodes])
 
             #Pipe length
-            sql = "SELECT SUM(SHAPE_Length) FROM msm_Link"
+            if extension == 'mdb':
+                sql = "SELECT SUM(SHAPE_Length) FROM msm_Link"
+            else:
+                sql = "SELECT SUM(Length) FROM msm_Link WHERE Active = 1"
             pipe_length = readQuery(sql,mu_path)[0][0]
             master_list.append([backup_no,'Network','Shape Length of Pipes','m',pipe_length])
 
             #Count pumps
-            sql = "SELECT COUNT(MUID) FROM msm_Pump"
+            if extension == 'mdb':
+                sql = "SELECT COUNT(MUID) FROM msm_Pump"
+            else:
+                sql = "SELECT COUNT(MUID) FROM msm_Pump WHERE Active = 1"
             pumps = readQuery(sql,mu_path)[0][0]
             master_list.append([backup_no,'Structures','Number of Pumps','Number',pumps])
 
             #Count weirs
-            sql = "SELECT COUNT(MUID) FROM msm_Weir"
+            if extension == 'mdb':
+                sql = "SELECT COUNT(MUID) FROM msm_Weir"
+            else:
+                sql = "SELECT COUNT(MUID) FROM msm_Weir WHERE Active = 1"
             weirs = readQuery(sql,mu_path)[0][0]
             master_list.append([backup_no,'Structures','Number of Weirs','Number',weirs])
 
             #Count orifices
-            sql = "SELECT COUNT(MUID) FROM msm_Orifice"
+            if extension == 'mdb':
+                sql = "SELECT COUNT(MUID) FROM msm_Orifice"
+            else:
+                sql = "SELECT COUNT(MUID) FROM msm_Orifice WHERE Active = 1"
             orifices = readQuery(sql,mu_path)[0][0]
             master_list.append([backup_no,'Structures','Number of Orifices','Number',orifices])
 
             #Count valves
-            sql = "SELECT COUNT(MUID) FROM msm_Valve"
+            if extension == 'mdb':
+                sql = "SELECT COUNT(MUID) FROM msm_Valve"
+            else:
+                sql = "SELECT COUNT(MUID) FROM msm_Valve WHERE Active = 1"
             valves = readQuery(sql,mu_path)[0][0]
             master_list.append([backup_no,'Structures','Number of Valves','Number',valves])
 
             #Count people
-            sql = "SELECT SUM(Population) FROM ms_LaLoadAlloc"
-            population = readQuery(sql,mu_path)[0][0]
+            if extension == 'mdb':
+                sql = "SELECT SUM(Population) FROM ms_LaLoadAlloc"
+            else:
+                sql = "SELECT SUM(Population) FROM msm_Loadpoint WHERE Active = 1"
+            try:
+                population = readQuery(sql,mu_path)[0][0]
+            except:
+                population = 0
             master_list.append([backup_no,'Loadpoints','Population','Number',population])
 
             #Sum water load
-            sql = "SELECT SUM(WaterLoad)/86.4 FROM ms_LaLoadAlloc"
+            if extension == 'mdb':
+                sql = "SELECT SUM(WaterLoad)/86.4 FROM ms_LaLoadAlloc"
+            else:
+                sql = "SELECT SUM(Loadflow)*1000 FROM msm_Loadpoint WHERE Active = 1"
             adwf = readQuery(sql,mu_path)[0][0]
             master_list.append([backup_no,'Loadpoints','ADWF','L/s',adwf])
 
             #Count catchments
-            sql = "SELECT COUNT(MUID) FROM ms_Catchment"
+            if extension == 'mdb':
+                sql = "SELECT COUNT(MUID) FROM ms_Catchment"
+            else:
+                sql = "SELECT COUNT(MUID) FROM msm_Catchment WHERE Active = 1"
             catchments = readQuery(sql,mu_path)[0][0]
             master_list.append([backup_no,'Catchments','Number of Catchments','Number',catchments])
 
             if prefix[:3].lower() == 'vsa':
 
                 #Count catchments
-                sql = "SELECT COUNT(MUID) FROM ms_Catchment WHERE NetTypeNo = 1"
+                if extension == 'mdb':
+                    sql = "SELECT COUNT(MUID) FROM ms_Catchment WHERE NetTypeNo = 1"
+                else:
+                    sql = "SELECT COUNT(MUID) FROM msm_Catchment WHERE NetTypeNo = 1 AND Active = 1"
                 catchments = readQuery(sql,mu_path)[0][0]
                 master_list.append([backup_no,'Catchments','Number of Sanitary Catchments','Number',catchments])
 
                 #Count catchments
-                sql = "SELECT COUNT(MUID) FROM ms_Catchment WHERE NetTypeNo = 3"
+                if extension == 'mdb':
+                    sql = "SELECT COUNT(MUID) FROM ms_Catchment WHERE NetTypeNo = 3"
+                else:
+                    sql = "SELECT COUNT(MUID) FROM msm_Catchment WHERE NetTypeNo = 3 AND Active = 1"
                 catchments = readQuery(sql,mu_path)[0][0]
                 master_list.append([backup_no,'Catchments','Number of Combined Catchments','Number',catchments])
 
                 #Count catchments
-                sql = "SELECT COUNT(MUID) FROM ms_Catchment WHERE NetTypeNo = 2"
+                if extension == 'mdb':
+                    sql = "SELECT COUNT(MUID) FROM ms_Catchment WHERE NetTypeNo = 2"
+                else:
+                    sql = "SELECT COUNT(MUID) FROM msm_Catchment WHERE NetTypeNo = 2 AND Active = 1"
                 catchments = readQuery(sql,mu_path)[0][0]
                 master_list.append([backup_no,'Catchments','Number of Storm Catchments','Number',catchments])
 
